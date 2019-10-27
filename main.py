@@ -3,6 +3,7 @@
 from __future__ import absolute_import
 import logging, traceback
 from flask import Flask, redirect, send_file, request, json, Response, jsonify
+import os
 app = Flask(__name__)
 from db import DatabaseManager
 import time
@@ -15,9 +16,31 @@ import base64
 db = DatabaseManager()
 
 @app.route('/', methods=['GET'])
+@app.route('/register', methods=['GET'])
 def get_main():
     try:
         return send_file('main.html')
+    except Exception as e:
+        return str(e)
+
+@app.route('/login', methods=['GET'])
+def login():
+    try:
+        return send_file('login.html')
+    except Exception as e:
+        return str(e)
+
+@app.route('/officemode', methods=['GET'])
+def officemode():
+    try:
+        return send_file('officemode.html')
+    except Exception as e:
+        return str(e)
+
+@app.route('/profile', methods=['GET'])
+def get_loggedin():
+    try:
+        return send_file('profile.html')
     except Exception as e:
         return str(e)
 
@@ -50,29 +73,36 @@ def saveStats():
         localmap['distance'] = data['distance']
         localmap['time'] = int(time.time())
         status = db.saveData(localmap)
+        sender = 'ajesh12k@gmail.com'
         if data['rpm'] > 50:
             userinfo = db.getuser(data['user'])
             docnumber = userinfo['docphone']
             docemail = userinfo['docemail']
             sendsms(docnumber, "Your patient {} seems to be stressed".format(data['user']))
-            sendmail('sender@sender.com', docemail, data['user'] + " is stressed", "Seems like your patient {} is stressed".format(data['user']))
+            sendmail(sender, docemail, data['user'] + " is stressed", "Seems like your patient {} is stressed".format(data['user']))
         if data['rpm'] > 40:
             userinfo = db.getuser(data['user'])
-            print(userinfo)
             friendnumber = userinfo['friendphone']
             friendemail = userinfo['friendemail']
             sendsms(friendnumber, "Your friend {} seems to be stressed".format(data['user']))
-            sendmail('sender@sender.com', friendemail, data['user'] + " is stressed", "Seems like your friend {} is stressed".format(data['user']))
+            sendmail(sender, friendemail, data['user'] + " is stressed", "Seems like your friend {} is stressed".format(data['user']))
         if data['rpm'] > 30:
             userinfo = db.getuser(data['user'])
             print(userinfo)
             phone = userinfo['phone']
             email = userinfo['email']
             sendsms(phone, "You seem to be stressed")
-            sendmail('sender@sender.com', email, data['user'] + " is stressed", "Seems like you are stressed")
+            sendmail(sender, email, data['user'] + " is stressed", "Seems like you are stressed")
         return jsonify({"status":"success"})
     except:
         print(traceback.format_exc())
+        return jsonify({"status":"failed"})
+
+@app.route('/getallusers', methods=['GET'])
+def getallusers():
+    try:
+        return db.getallusers()
+    except:
         return jsonify({"status":"failed"})
 
 @app.route('/getData', methods=['GET'])
@@ -81,6 +111,7 @@ def getData():
         user = request.args.get("user")
         fromtime = request.args.get("from")
         totime = request.args.get("to")
+        print(user, fromtime, totime)
         data = db.getData(user, fromtime, totime)
         return data
     except:
@@ -89,8 +120,8 @@ def getData():
 
 def sendsms(number, message):
     try:
-        account_sid = "TWILIO SID"
-        auth_token  = "TIWLIO TOKEN"
+        account_sid = "ACd2be1e72472c2c271f4851048445eaf6"
+        auth_token  = "439bbdd82f5de7b7093be4082a064ed6"
         client = Client(account_sid, auth_token)
         message = client.messages.create(
                     to=number, 
@@ -123,5 +154,4 @@ def sendmail(sender, to, subject, message_text):
         print(e.message)
 
 if __name__ == '__main__':
-    app.run(port=5000)
-    logging.basicConfig( filename='./gae.log', filemode='a' )
+    app.run(host=os.getenv('IP', '0.0.0.0'),port=int(os.getenv('PORT', 5000)))

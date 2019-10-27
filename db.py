@@ -9,7 +9,7 @@ import dateutil.parser as parser
 import hashlib, traceback
 import dns
 
-client = pymongo.MongoClient("mongodb://URL")
+client = pymongo.MongoClient("mongodb://krishna:krishna123@ds245647.mlab.com:45647/lsrdb?retryWrites=false")
 db = client.lsrdb
 
 class DatabaseManager:
@@ -35,7 +35,6 @@ class DatabaseManager:
     def getData(self, user, timefrom, timeto):
         connect = db.stats
         query = {'user':user, 'time': {'$gte': int(timefrom), '$lt': int(timeto)}}
-        print(query)
         mapResp = []
         for q in connect.find(query, {'_id': False}):
             mapResp.append(q)
@@ -49,3 +48,11 @@ class DatabaseManager:
         for q in connect.find(query, {'_id': False}):
             resp = q
         return resp
+
+    def getallusers(self):
+        connect = db.users
+        query = {}
+        resp = []
+        for q in connect.find(query, {'_id': False}):
+            resp.append(q)
+        return jsonify({"success":"success", "result":resp})

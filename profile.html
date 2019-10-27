@@ -1,0 +1,245 @@
+<html>
+    <head>
+            <title>Slap af</title>
+            <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+            <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+            <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+            <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+            <script src="http://pagination.js.org/dist/2.1.4/pagination.min.js"></script>
+            <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+            <link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+            <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+    
+            <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.4/socket.io.js"></script>
+            <script src="http://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+            <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js"></script>
+            <script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
+            <style>
+            .panel-footer{
+                height:50px
+            }
+            a:hover {
+                cursor:pointer;
+            }
+
+        </style>
+    </head>
+    <body>
+            <nav class="navbar navbar-default">
+                    <div class="container-fluid">
+                      <div class="navbar-header">
+                        <a class="navbar-brand" href="#">Slap af</a>
+                      </div>
+                      <ul class="nav navbar-nav">
+                        <li class="active"><a href="/">Logout</a></li>
+                      </ul>
+                    </div>
+                  </nav>
+          </div>
+        </nav>
+        <div class = "container-fluid">
+            <div class = "col-md-3">Select a name</div>
+            <div class = "col-md-5">
+                <select id = "users" class = "form-control" onchange = "fetchdata()">
+                    <option value = "">Select a user</option>
+                </select>
+            </div>
+        </div>
+        <div class = "container-fluid" id = "userinfo" >
+            Data of 
+        </div>
+        <div class = "container-fluid">
+            
+            <canvas id="myChart" width="400" height="200"></canvas>
+        </div>
+        <div class = "container-fluid" id = "highinfo">
+
+        </div>
+                    
+        <div class="modal fade" id="myModal" role="dialog">
+            <div class="modal-dialog">
+                <!-- Modal content-->
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+                        <h4 class="modal-title" id = "modal-title">Status</h4>
+                    </div>
+                    <div class="modal-body" id = "modal-body">
+                        <p id = "modaltext">Some text in the modal.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
+
+<script>
+    $.support.cors = true;
+    var myChart = '';
+    var highcount = 0;
+    window.onload = function(){
+        $("#userinfo").hide();
+        $("#highinfo").hide();
+        getallusers();
+    }
+
+    function getallusers(){
+        jQuery.ajax({
+            type:"GET",
+            url: 'getallusers',
+            contentType:'application/json',
+            dataType:'json',
+            success:function(data){
+                if(data['success'] == 'success'){
+                    var mySelect = $('#users');
+                    for(var i = 0; i < data['result'].length; i++){
+                        var userinfo = data['result'][i];
+                        var username = userinfo['user'];
+                        mySelect.append(
+                            $('<option></option>').val(username).html(username)
+                        );
+                    }
+                }
+            }
+        })
+    }
+
+    function fetchdata(){
+        var bkclr = [];
+        var times = [];
+        var values = [];
+        var user = $("#users").val();
+        $("#userinfo").html("<h3>Data of " + user+"</h3>");
+        $("#userinfo").show();
+        jQuery.ajax({
+            type: "GET",
+            url: 'getData?user='+user+'&from='+(parseInt(Date.now()/1000)-3600)+'&to='+parseInt(Date.now()/1000),
+            contentType: "application/json",
+            dataType: "json",
+            success: function(data) {
+                if(data['status']=="success"){
+                    allinfo = data['data'];
+                    for(var i = 0; i < allinfo.length; i++){
+                        localmap = {};
+                        values.push(allinfo[i]['rpm']);
+                        dateObj = new Date(allinfo[i]['time']*1000);
+                        utcString = dateObj.toUTCString(); 
+                        time = utcString.slice(-12, -4);
+                        times.push(time);
+                        if(allinfo[i]['rpm'] < 15){
+                            bkclr.push('yellow');
+                        }else if(allinfo[i]['rpm'] < 25){
+                            bkclr.push('green');
+                        }else if(allinfo[i]['rpm'] > 25){
+                            bkclr.push('red');
+                            highcount = highcount+1;
+                        }
+                    }
+                    var stress = "no";
+                    if(highcount > 30){
+                        stress = "medium";
+                    }else if(highcount > 60){
+                        stress = "high";
+                    }
+                    $("#highinfo").html(user + " has had a high breathing for a total of " + highcount + " times in the last hour. It might indicate that " + user + " is under " + stress + " stress")
+                    $("#highinfo").show();
+                    draw(times, values, bkclr);
+                }else{
+                    alert("Failed to fetch data")
+                }
+            }
+        });
+        keepupdating();
+    }
+
+    function keepupdating(){
+        setInterval(function(){
+            var bkclr = [];
+            var times = [];
+            var values = [];
+            var user = $("#users").val();
+            jQuery.ajax({
+                type: "GET",
+                url: 'getData?user='+user+'&from='+(parseInt(Date.now()/1000)-1)+'&to='+parseInt(Date.now()/1000),
+                contentType: "application/json",
+                dataType: "json",
+                success: function(data) {
+                    if(data['status']=="success"){
+                        allinfo = data['data'];
+                        for(var i = 0; i < allinfo.length; i++){
+                            localmap = {};
+                            values.push(allinfo[i]['rpm']);
+                            dateObj = new Date(allinfo[i]['time']*1000);
+                            utcString = dateObj.toUTCString(); 
+                            time = utcString.slice(-11, -4);
+                            times.push(time);
+                            if(allinfo[i]['rpm'] < 12){
+                                bkclr.push('yellow')
+                            }else if(allinfo[i]['rpm'] < 20){
+                                bkclr.push('green')
+                            }else if(allinfo[i]['rpm'] > 20){
+                                bkclr.push('red');
+                                highcount = highcount+1;
+                            }
+                        }
+                        var stress = "<span style='color:green'>no</span>";
+                        if(highcount > 200){
+                            stress = "<span style='color:red'>high</span>";
+                        }else if(highcount > 60){
+                            stress = "<span style='color:orange'>medium</span>";
+                        }
+                        $("#highinfo").html("<h2>" + user + " has had a high breathing for a total of " + highcount + " times in the last hour. It might indicate that " + user + " is under " + stress + " stress</h2>")
+
+                        var ctx = document.getElementById('myChart').getContext('2d');
+                        addData(myChart, times, values, bkclr);
+                    }else{
+                        alert("Failed to fetch data")
+                    }
+                }
+            });
+        }, 1000);
+    }
+
+    function addData(chart, label, data, bkclr) {
+        for(var i = 0; i < label.length; i++){
+            chart.data.labels.push(label[i]);
+        }
+        chart.data.datasets.forEach((dataset) => {
+            dataset.data.push(data);
+        });
+        chart.data.datasets.forEach((dataset) => {
+            dataset.borderColor.push(bkclr);
+        });
+        chart.update();
+    }
+
+    function draw(times, data, bkclr){
+        var ctx = document.getElementById('myChart').getContext('2d');
+        myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: times,
+                datasets: [{
+                    label: 'Respirations per min',
+                    data: data,
+                    borderColor: bkclr,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    yAxes: [{
+                        ticks: {
+                            beginAtZero: true
+                        }
+                    }]
+                }
+            }
+        });
+    }
+</script>
